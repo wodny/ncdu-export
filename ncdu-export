@@ -26,6 +26,9 @@ import re
 import json
 import codecs
 
+PROGNAME = "py-ncdu-export"
+__version__ = "0.2"
+
 class WalkError:
     val = False
 
@@ -68,7 +71,9 @@ def main():
         exit("one dirname required")
 
     print(
-        """[1,0,{{"progname":"ncdu","progver":"1.10","timestamp":{0}}}""".format(
+        """[1,0,{{"progname":"{0}","progver":"{1}","timestamp":{2}}}""".format(
+            PROGNAME,
+            __version__,
             int(time.time())
         ),
         end=""
