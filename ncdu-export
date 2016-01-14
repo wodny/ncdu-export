@@ -1,0 +1,117 @@
+#!/usr/bin/python
+# coding: utf-8
+
+# Standalone ncdu export feature
+# Copyright (C) 2015 Marcin Szewczyk, marcin.szewczyk[at]wodny.org
+# 
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+# 
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+from __future__ import print_function
+import sys
+import os
+import os.path
+import time
+import re
+import json
+import codecs
+
+class WalkError:
+    val = False
+
+def get_info(path, whole_path=False):
+    S_BLKSIZE = 512
+    stat_result = os.lstat(path)
+    return dict((
+        ("name", path if whole_path else os.path.basename(path)),
+        ("asize", stat_result.st_size),
+        ("dsize", stat_result.st_blocks * S_BLKSIZE),
+        ("ino", stat_result.st_ino),
+    ))
+
+def get_info_string(path, whole_path=False, walk_error=False):
+    info = get_info(path, whole_path)
+    name = codecs.decode(info["name"], "utf-8", "replace")
+    name = json.dumps(name)
+    return """{{"name":{0},"asize":{1},"dsize":{2},"ino":{3}{4}}}""".format(
+        name,
+        info["asize"],
+        info["dsize"],
+        info["ino"],
+        ",\"read_error\":true" if walk_error else "",
+    )
+
+def get_path_dirs(path):
+    if not os.path.isabs(path):
+        raise Exception("absolute path required")
+    path_dirs = []
+    path, tail = os.path.split(path)
+    while path != "/":
+        path_dirs.append(tail)
+        path, tail = os.path.split(path)
+    path_dirs.append(tail)
+    path_dirs.reverse()
+    return path_dirs
+
+def main():
+    if len(sys.argv) != 2:
+        exit("one dirname required")
+
+    print(
+        """[1,0,{{"progname":"ncdu","progver":"1.10","timestamp":{0}}}""".format(
+            int(time.time())
+        ),
+        end=""
+    )
+
+    class PathLen:
+        curr = 0
+        prev = 0
+
+    path_len = PathLen()
+
+    def handle_dir(current, path_len, walk_error=False):
+        path_dirs = get_path_dirs(current)
+        path_len.curr = len(path_dirs)
+    
+        lev_diff = path_len.curr - path_len.prev
+        if lev_diff == 0:
+            print("],")
+        elif lev_diff < 0:
+            print("]"*(-lev_diff+1)+",")
+        else:
+            print(",")
+    
+        print("[", end="")
+        print(get_info_string(current, walk_error=walk_error), end="")
+    
+        path_len.prev = path_len.curr
+
+    def walk_error_handler(error):
+        handle_dir(error.filename, path_len, walk_error=True)
+
+    basedir = os.path.abspath(sys.argv[1])
+    dirgen = os.walk(basedir, onerror=walk_error_handler)
+
+    for current, subdirs, fnames in dirgen:
+        handle_dir(current, path_len)
+    
+        for fname in fnames:
+            print(",")
+            print(get_info_string(os.path.join(current, fname)), end="")
+    
+    lev_diff = len(get_path_dirs(basedir)) - path_len.prev - 1
+    print("]"*(-lev_diff+1))
+
+if __name__ == "__main__":
+    main()
