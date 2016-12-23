@@ -3,6 +3,7 @@
 
 # Standalone ncdu export feature
 # Copyright (C) 2015 Marcin Szewczyk, marcin.szewczyk[at]wodny.org
+# Copyright (c) 2016 George Ruinelli, george[at]ruinelli
 # 
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -27,7 +28,8 @@ import json
 import codecs
 
 PROGNAME = "py-ncdu-export"
-__version__ = "0.2"
+__version__ = "0.3"
+EXPORT_FILE = "ncdu_export.json"
 
 class WalkError:
     val = False
@@ -44,8 +46,10 @@ def get_info(path, whole_path=False):
 
 def get_info_string(path, whole_path=False, walk_error=False):
     info = get_info(path, whole_path)
-    name = codecs.decode(info["name"], "utf-8", "replace")
-    name = json.dumps(name)
+    name = codecs.decode(info["name"], "utf-8", "replace")    
+    #print(name)
+
+    name = json.dumps(name)    
     return """{{"name":{0},"asize":{1},"dsize":{2},"ino":{3}{4}}}""".format(
         name,
         info["asize"],
@@ -69,14 +73,30 @@ def get_path_dirs(path):
 def main():
     if len(sys.argv) != 2:
         exit("one dirname required")
+        
+    
+    rows, columns = os.popen('stty size', 'r').read().split()
+        
+        
+    print(PROGNAME)
+        
+    print("Version: " + __version__)
+        
+    print("Copyright (c) 2015 Marcin Szewczyk, marcin.szewczyk[at]wodny.org")
+    print("Copyright (c) 2016 George Ruinelli, george[at]ruinelli")
+    print("\n")
+    print("Export gets written into: ./" + EXPORT_FILE)
+    print("Press CTRL + C to quit")
+    print("\n")
+        
+    f = open(EXPORT_FILE, 'w')
 
-    print(
+    f.write(
         """[1,0,{{"progname":"{0}","progver":"{1}","timestamp":{2}}}""".format(
             PROGNAME,
             __version__,
             int(time.time())
-        ),
-        end=""
+        )
     )
 
     class PathLen:
@@ -91,14 +111,14 @@ def main():
     
         lev_diff = path_len.curr - path_len.prev
         if lev_diff == 0:
-            print("],")
+            f.write("],")
         elif lev_diff < 0:
-            print("]"*(-lev_diff+1)+",")
+            f.write("]"*(-lev_diff+1)+",")
         else:
-            print(",")
-    
-        print("[", end="")
-        print(get_info_string(current, walk_error=walk_error), end="")
+            f.write(",")
+        f.write("\n")
+        f.write("[")
+        f.write(get_info_string(current, walk_error=walk_error))
     
         path_len.prev = path_len.curr
 
@@ -108,15 +128,40 @@ def main():
     basedir = os.path.abspath(sys.argv[1])
     dirgen = os.walk(basedir, onerror=walk_error_handler)
 
+    
+    show = 0
+    print("Scanning:")
     for current, subdirs, fnames in dirgen:
         handle_dir(current, path_len)
     
         for fname in fnames:
-            print(",")
-            print(get_info_string(os.path.join(current, fname)), end="")
+            f.write(",")
+            f.write("\n")
+            f.write(get_info_string(os.path.join(current, fname)))
+            
+            
+            if(show > 1000):
+                line = current + "/" + fname
+                line = line.replace('\n', '')
+                
+                columns = int(columns)
+                if(len(line) > (columns)): #line too long, shorten it
+                    line = line[:(columns - 1)]                    
+                
+                #sys.stdout.write("\033[K") # Clear to the end of line
+                sys.stdout.write("\r" + line + (" " * (columns - len(line))))
+                sys.stdout.flush()
+                show = 0
+                
+            show = show + 1
     
     lev_diff = len(get_path_dirs(basedir)) - path_len.prev - 1
-    print("]"*(-lev_diff+1))
+    f.write("]"*(-lev_diff+1))
+    f.write("\n")
+    
+    print("")
+    
+    f.closed
 
-if __name__ == "__main__":
+if __name__ == "__main__":    
     main()
