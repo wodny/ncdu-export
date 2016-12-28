@@ -3,17 +3,17 @@
 
 # Standalone ncdu export feature
 # Copyright (C) 2015 Marcin Szewczyk, marcin.szewczyk[at]wodny.org
-# 
+#
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation, either version 3 of the License, or
 # (at your option) any later version.
-# 
+#
 # This program is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
-# 
+#
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
@@ -29,18 +29,32 @@ import codecs
 PROGNAME = "py-ncdu-export"
 __version__ = "0.2"
 
+
 class WalkError:
     val = False
 
+
 def get_info(path, whole_path=False):
     S_BLKSIZE = 512
-    stat_result = os.lstat(path)
+    try:
+        stat_result = os.lstat(path)
+    except OSError:
+        return dict((
+                    ("name", "missing"),
+                    ("asize", 0),
+                    ("dsize", 0),
+                    ("ino", 0),
+                    ))
+    path_to_write = path if whole_path else os.path.basename(path)
+    if not path_to_write:
+        path_to_write = '/'
     return dict((
-        ("name", path if whole_path else os.path.basename(path)),
+        ("name", path_to_write),
         ("asize", stat_result.st_size),
         ("dsize", stat_result.st_blocks * S_BLKSIZE),
         ("ino", stat_result.st_ino),
     ))
+
 
 def get_info_string(path, whole_path=False, walk_error=False):
     info = get_info(path, whole_path)
@@ -54,6 +68,7 @@ def get_info_string(path, whole_path=False, walk_error=False):
         ",\"read_error\":true" if walk_error else "",
     )
 
+
 def get_path_dirs(path):
     if not os.path.isabs(path):
         raise Exception("absolute path required")
@@ -65,6 +80,7 @@ def get_path_dirs(path):
     path_dirs.append(tail)
     path_dirs.reverse()
     return path_dirs
+
 
 def main():
     if len(sys.argv) != 2:
@@ -82,24 +98,29 @@ def main():
     class PathLen:
         curr = 0
         prev = 0
+        root_encountered = False
 
     path_len = PathLen()
 
     def handle_dir(current, path_len, walk_error=False):
         path_dirs = get_path_dirs(current)
         path_len.curr = len(path_dirs)
-    
+
         lev_diff = path_len.curr - path_len.prev
         if lev_diff == 0:
-            print("],")
+            if path_len.curr == 1 and not path_len.root_encountered:
+                path_len.root_encountered = True
+                print(",")
+            else:
+                print("],")
         elif lev_diff < 0:
-            print("]"*(-lev_diff+1)+",")
+            print("]" * (-lev_diff + 1) + ",")
         else:
             print(",")
-    
+
         print("[", end="")
         print(get_info_string(current, walk_error=walk_error), end="")
-    
+
         path_len.prev = path_len.curr
 
     def walk_error_handler(error):
@@ -110,13 +131,16 @@ def main():
 
     for current, subdirs, fnames in dirgen:
         handle_dir(current, path_len)
-    
+
         for fname in fnames:
             print(",")
             print(get_info_string(os.path.join(current, fname)), end="")
-    
+
     lev_diff = len(get_path_dirs(basedir)) - path_len.prev - 1
-    print("]"*(-lev_diff+1))
+    print("]" * (-lev_diff + 1))
+
+    if path_len.root_encountered:
+        print("]")
 
 if __name__ == "__main__":
     main()
