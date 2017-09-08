@@ -3,17 +3,20 @@
 
 # Standalone ncdu export feature
 # Copyright (C) 2015 Marcin Szewczyk, marcin.szewczyk[at]wodny.org
-# 
+#
+# Contributors:
+#   Jose Riha (https://github.com/jose1711)
+#
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation, either version 3 of the License, or
 # (at your option) any later version.
-# 
+#
 # This program is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
-# 
+#
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
@@ -22,15 +25,16 @@ import sys
 import os
 import os.path
 import time
-import re
 import json
 import codecs
 
 PROGNAME = "py-ncdu-export"
-__version__ = "0.5.0"
+__version__ = "0.5.1"
+
 
 class WalkError:
     val = False
+
 
 def get_info(path):
     S_BLKSIZE = 512
@@ -50,6 +54,7 @@ def get_info(path):
         ("mtime", stat_result.st_mtime),
     ))
 
+
 def get_info_string(path, options, walk_error=False):
     info = get_info(path)
     name = codecs.decode(info["name"], "utf-8", "replace")
@@ -66,6 +71,7 @@ def get_info_string(path, options, walk_error=False):
             ",\"mtime\":{0:.0f}".format(info["mtime"]) if options["mtime"] else ""
         )
 
+
 def get_path_dirs(path):
     if not os.path.isabs(path):
         raise Exception("absolute path required")
@@ -77,6 +83,7 @@ def get_path_dirs(path):
     path_dirs.append(tail)
     path_dirs.reverse()
     return path_dirs
+
 
 def main():
     options = dict(
@@ -126,7 +133,7 @@ def main():
     def handle_dir(current, path_len, options, walk_error=False):
         path_dirs = get_path_dirs(current)
         path_len.curr = len(path_dirs)
-    
+
         lev_diff = path_len.curr - path_len.prev
         if lev_diff == 0:
             print("],")
@@ -134,14 +141,15 @@ def main():
             print("]"*(-lev_diff+1)+",")
         else:
             print(",")
-    
-        print("{0}[{1}".format(
+
+        print(
+            "{0}[{1}".format(
                 "    "*(path_len.curr-path_len.base) if options["format"] else "",
                 get_info_string(current, options, walk_error=walk_error)
             ),
             end=""
         )
-    
+
         path_len.prev = path_len.curr
 
     def walk_error_handler(error):
@@ -153,17 +161,19 @@ def main():
 
     for current, subdirs, fnames in dirgen:
         handle_dir(current, path_len, options)
-    
+
         for fname in fnames:
-            print(",\n{0}{1}".format(
+            print(
+                ",\n{0}{1}".format(
                     "    "*(path_len.curr-path_len.base) if options["format"] else "",
                     get_info_string(os.path.join(current, fname), options)
                 ),
                 end=""
             )
-    
+
     lev_diff = len(get_path_dirs(basedir)) - path_len.prev - 1
     print("]"*(-lev_diff+1))
+
 
 if __name__ == "__main__":
     main()
