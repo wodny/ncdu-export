@@ -27,7 +27,7 @@ import json
 import codecs
 
 PROGNAME = "py-ncdu-export"
-__version__ = "0.3.0"
+__version__ = "0.4.0"
 
 class WalkError:
     val = False
@@ -40,18 +40,20 @@ def get_info(path):
         ("asize", stat_result.st_size),
         ("dsize", stat_result.st_blocks * S_BLKSIZE),
         ("ino", stat_result.st_ino),
+        ("mtime", stat_result.st_mtime),
     ))
 
-def get_info_string(path, walk_error=False):
+def get_info_string(path, options, walk_error=False):
     info = get_info(path)
     name = codecs.decode(info["name"], "utf-8", "replace")
     name = json.dumps(name)
-    return """{{"name":{0},"asize":{1},"dsize":{2},"ino":{3}{4}}}""".format(
+    return """{{"name":{0},"asize":{1},"dsize":{2},"ino":{3}{4}{5}}}""".format(
         name,
         info["asize"],
         info["dsize"],
         info["ino"],
         ",\"read_error\":true" if walk_error else "",
+        ",\"mtime\":{0:.0f}".format(info["mtime"]) if options["mtime"] else ""
     )
 
 def get_path_dirs(path):
@@ -68,19 +70,30 @@ def get_path_dirs(path):
 
 def main():
     options = dict(
-        format=False
+        format=False,
+        mtime=False
     )
 
     argv = []
+    usage = False
 
     for arg in sys.argv[1:]:
-        if arg == "-f":
-            options["format"] = True
+        if arg.startswith("-"):
+            for i in arg:
+                if i == "f":
+                    options["format"] = True
+                if i == "m":
+                    options["mtime"] = True
+                if i == "h":
+                    usage = True
         else:
             argv.append(arg)
 
     if len(argv) != 1:
-        exit("one dirname required")
+        usage = True
+
+    if usage:
+        exit("{0} [-fm] dirname\n\t-f  format\n\t-m  include mtime".format(sys.argv[0]))
 
     dirname = argv[0]
 
@@ -114,7 +127,7 @@ def main():
     
         print("{0}[{1}".format(
                 "    "*(path_len.curr-path_len.base) if options["format"] else "",
-                get_info_string(current, walk_error=walk_error)
+                get_info_string(current, options, walk_error=walk_error)
             ),
             end=""
         )
@@ -134,7 +147,7 @@ def main():
         for fname in fnames:
             print(",\n{0}{1}".format(
                     "    "*(path_len.curr-path_len.base) if options["format"] else "",
-                    get_info_string(os.path.join(current, fname))
+                    get_info_string(os.path.join(current, fname), options)
                 ),
                 end=""
             )
