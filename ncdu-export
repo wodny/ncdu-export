@@ -27,7 +27,7 @@ import json
 import codecs
 
 PROGNAME = "py-ncdu-export"
-__version__ = "0.2.1"
+__version__ = "0.3.0"
 
 class WalkError:
     val = False
@@ -67,8 +67,22 @@ def get_path_dirs(path):
     return path_dirs
 
 def main():
-    if len(sys.argv) != 2:
+    options = dict(
+        format=False
+    )
+
+    argv = []
+
+    for arg in sys.argv[1:]:
+        if arg == "-f":
+            options["format"] = True
+        else:
+            argv.append(arg)
+
+    if len(argv) != 1:
         exit("one dirname required")
+
+    dirname = argv[0]
 
     print(
         """[1,0,{{"progname":"{0}","progver":"{1}","timestamp":{2}}}""".format(
@@ -80,12 +94,13 @@ def main():
     )
 
     class PathLen:
+        base = None
         curr = 0
         prev = 0
 
     path_len = PathLen()
 
-    def handle_dir(current, path_len, walk_error=False):
+    def handle_dir(current, path_len, options, walk_error=False):
         path_dirs = get_path_dirs(current)
         path_len.curr = len(path_dirs)
     
@@ -97,23 +112,32 @@ def main():
         else:
             print(",")
     
-        print("[", end="")
-        print(get_info_string(current, walk_error=walk_error), end="")
+        print("{0}[{1}".format(
+                "    "*(path_len.curr-path_len.base) if options["format"] else "",
+                get_info_string(current, walk_error=walk_error)
+            ),
+            end=""
+        )
     
         path_len.prev = path_len.curr
 
     def walk_error_handler(error):
-        handle_dir(error.filename, path_len, walk_error=True)
+        handle_dir(error.filename, path_len, options, walk_error=True)
 
-    basedir = os.path.abspath(sys.argv[1])
+    basedir = os.path.abspath(dirname)
     dirgen = os.walk(basedir, onerror=walk_error_handler)
+    path_len.base = len(get_path_dirs(basedir))
 
     for current, subdirs, fnames in dirgen:
-        handle_dir(current, path_len)
+        handle_dir(current, path_len, options)
     
         for fname in fnames:
-            print(",")
-            print(get_info_string(os.path.join(current, fname)), end="")
+            print(",\n{0}{1}".format(
+                    "    "*(path_len.curr-path_len.base) if options["format"] else "",
+                    get_info_string(os.path.join(current, fname))
+                ),
+                end=""
+            )
     
     lev_diff = len(get_path_dirs(basedir)) - path_len.prev - 1
     print("]"*(-lev_diff+1))
