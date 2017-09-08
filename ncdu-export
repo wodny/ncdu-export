@@ -27,16 +27,23 @@ import json
 import codecs
 
 PROGNAME = "py-ncdu-export"
-__version__ = "0.4.0"
+__version__ = "0.5.0"
 
 class WalkError:
     val = False
 
 def get_info(path):
     S_BLKSIZE = 512
-    stat_result = os.lstat(path)
+    name = os.path.basename(path) or "/"
+    try:
+        stat_result = os.lstat(path)
+    except OSError:
+        return dict((
+            ("name", name),
+            ("error", True),
+        ))
     return dict((
-        ("name", os.path.basename(path) or "/"),
+        ("name", name),
         ("asize", stat_result.st_size),
         ("dsize", stat_result.st_blocks * S_BLKSIZE),
         ("ino", stat_result.st_ino),
@@ -47,14 +54,17 @@ def get_info_string(path, options, walk_error=False):
     info = get_info(path)
     name = codecs.decode(info["name"], "utf-8", "replace")
     name = json.dumps(name)
-    return """{{"name":{0},"asize":{1},"dsize":{2},"ino":{3}{4}{5}}}""".format(
-        name,
-        info["asize"],
-        info["dsize"],
-        info["ino"],
-        ",\"read_error\":true" if walk_error else "",
-        ",\"mtime\":{0:.0f}".format(info["mtime"]) if options["mtime"] else ""
-    )
+    if info.get("error", False):
+        return """{{"name":{0},"read_error":true}}""".format(name)
+    else:
+        return """{{"name":{0},"asize":{1},"dsize":{2},"ino":{3}{4}{5}}}""".format(
+            name,
+            info["asize"],
+            info["dsize"],
+            info["ino"],
+            ",\"read_error\":true" if walk_error else "",
+            ",\"mtime\":{0:.0f}".format(info["mtime"]) if options["mtime"] else ""
+        )
 
 def get_path_dirs(path):
     if not os.path.isabs(path):
