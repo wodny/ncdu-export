@@ -29,7 +29,8 @@ import json
 import codecs
 
 PROGNAME = "py-ncdu-export"
-__version__ = "0.5.1"
+__version__ = "0.6.0"
+PROGRESS_STEP = 1000
 
 
 class WalkError:
@@ -88,7 +89,9 @@ def get_path_dirs(path):
 def main():
     options = dict(
         format=False,
-        mtime=False
+        mtime=False,
+        progress=False,
+        progressfd=None
     )
 
     argv = []
@@ -101,6 +104,10 @@ def main():
                     options["format"] = True
                 if i == "m":
                     options["mtime"] = True
+                if i == "p":
+                    if os.isatty(sys.stdin.fileno()) and not os.isatty(sys.stdout.fileno()):
+                        options["progress"] = True
+                        options["progressfd"] = os.fdopen(sys.stdin.fileno(), "w")
                 if i == "h":
                     usage = True
         else:
@@ -110,7 +117,16 @@ def main():
         usage = True
 
     if usage:
-        exit("{0} [-fm] dirname\n\t-f  format\n\t-m  include mtime".format(sys.argv[0]))
+        exit(
+            "{0} [-fhmp] dirname"
+            "\nversion: {1}"
+            "\noptions:"
+            "\n\t-f  format"
+            "\n\t-h  this help"
+            "\n\t-m  include mtime"
+            "\n\t-p  show progress"
+            .format(sys.argv[0], __version__)
+        )
 
     dirname = argv[0]
 
@@ -155,13 +171,24 @@ def main():
     def walk_error_handler(error):
         handle_dir(error.filename, path_len, options, walk_error=True)
 
+    def maybe_show_progress(scan_counter, options, end=""):
+        if options["progress"] and (end or scan_counter % PROGRESS_STEP == 0):
+            print(
+                "\rScanned files: {0}".format(scan_counter),
+                file=options["progressfd"],
+                end=end
+            )
+            options["progressfd"].flush()
+
     basedir = os.path.abspath(dirname)
     dirgen = os.walk(basedir, onerror=walk_error_handler)
     path_len.base = len(get_path_dirs(basedir))
 
+    scan_counter = 0
     for current, subdirs, fnames in dirgen:
         handle_dir(current, path_len, options)
-
+        scan_counter += 1
+        maybe_show_progress(scan_counter, options)
         for fname in fnames:
             print(
                 ",\n{0}{1}".format(
@@ -170,9 +197,12 @@ def main():
                 ),
                 end=""
             )
+            scan_counter += 1
+            maybe_show_progress(scan_counter, options)
 
     lev_diff = len(get_path_dirs(basedir)) - path_len.prev - 1
     print("]"*(-lev_diff+1))
+    maybe_show_progress(scan_counter, options, end="\n")
 
 
 if __name__ == "__main__":
