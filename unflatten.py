@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 
+# Convert flattened JSON back to ncdu-compatible JSON.
+#
 # Copyright (C) 2018 Marcin Szewczyk, marcin.szewczyk[at]wodny.org
 #
 # This program is free software: you can redistribute it and/or modify
@@ -23,10 +25,10 @@ from itertools import takewhile
 from operator import eq
 
 PROGNAME = "ncdu-export-unflatten"
-__version__ = "0.1.0"
+__version__ = "0.1.1"
 
 argp = argparse.ArgumentParser()
-argp.add_argument("file", type=argparse.FileType("r"), help="ncdu export filename")
+argp.add_argument("file", type=argparse.FileType("r"), help="flat export filename")
 options = argp.parse_args()
 
 prev_dirs = []
@@ -56,7 +58,10 @@ def adjust_depth(dirs, prev_dirs):
 
 for line in options.file:
     obj = json.loads(line)
-    dirs = obj["dirs"] if isinstance(obj["dirs"], list) else obj["dirs"].split("/")
+    dirs = obj["dirs"]
+    if not isinstance(dirs, list):
+        dirs = dirs.lstrip("/")
+        dirs = dirs.split("/") if dirs else []
     etype = obj["type"]
     del obj["dirs"]
     del obj["type"]
