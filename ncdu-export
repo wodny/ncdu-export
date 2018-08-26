@@ -1,8 +1,11 @@
 #!/usr/bin/python
 # coding: utf-8
 
-# Standalone ncdu export feature
-# Copyright (C) 2015 Marcin Szewczyk, marcin.szewczyk[at]wodny.org
+# Standalone ncdu export feature using only Python's 2.6 built-in 
+# features. JSON output is built incrementally and only partially using 
+# the standard json library -- uglier code but minimal RAM consumption.
+#
+# Copyright (C) 2015-2018 Marcin Szewczyk, marcin.szewczyk[at]wodny.org
 #
 # Contributors:
 #   Jose Riha (https://github.com/jose1711)
