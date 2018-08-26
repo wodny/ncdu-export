@@ -1,5 +1,8 @@
 #!/usr/bin/env python3
 
+# Convert ncdu's JSON output to flat JSON easy to process using jq (or 
+# other JSON-processing tools).
+#
 # Copyright (C) 2018 Marcin Szewczyk, marcin.szewczyk[at]wodny.org
 #
 # This program is free software: you can redistribute it and/or modify
@@ -42,7 +45,7 @@ obj = {}
 
 argp = argparse.ArgumentParser()
 argp.add_argument("file", type=argparse.FileType("rb"), help="ncdu export filename")
-argp.add_argument("--dirs", choices=["array", "string"], default="array", help="directory name format output to flat file")
+argp.add_argument("--dirs", choices=["array", "string"], default="string", help="directory name format output to flat file")
 argp.add_argument("--verbose", action="store_true", help="enable verbose mode (inc. ijson variant)")
 options = argp.parse_args()
 
