@@ -33,9 +33,14 @@ import json
 import codecs
 
 PROGNAME = "py-ncdu-export"
-__version__ = "0.7.0"
+__version__ = "0.7.1"
 PROGRESS_STEP = 1000
 
+FMT_NONE = 0
+FMT_NEWENTRY = 1 << 0
+FMT_LEFT_BRACE = 1 << 1
+FMT_RIGHT_BRACE = 1 << 2
+FMT_BOTH_BRACES = FMT_LEFT_BRACE | FMT_RIGHT_BRACE
 
 class WalkError:
     val = False
@@ -173,14 +178,9 @@ def main():
             print(",")
 
         info = get_info(current)
-        print(
-            "{0}[{1}".format(
-                "    "*(path_len.curr-path_len.base) if options["format"] else "",
-                get_info_string(info, options, walk_error=walk_error)
-            ),
-            end=""
-        )
 
+        indent = path_len.curr-path_len.base
+        print_entry(info, options, indent, FMT_LEFT_BRACE, walk_error=walk_error)
         path_len.prev = path_len.curr
 
     def handle_subdirs(subdirs, current, options, indent):
@@ -189,21 +189,22 @@ def main():
             if stat.S_ISDIR(info["mode"]):
                 excluded = options["device"] and options["device"] != info["dev"] and "othfs"
                 if excluded:
-                    print_entry(info, options, indent, braces=True, excluded=excluded)
+                    print_entry(info, options, indent, FMT_NEWENTRY | FMT_BOTH_BRACES, excluded=excluded)
                 else:
                     yield subdir
             elif stat.S_ISLNK(info["mode"]):
-                print_entry(info, options, indent)
+                print_entry(info, options, indent, FMT_NEWENTRY)
             else:
                 yield subdir
 
-    def print_entry(info, options, indent, braces=False, excluded=False):
+    def print_entry(info, options, indent, format=FMT_NONE, walk_error=False, excluded=False):
         print(
-            ",\n{0}{1}{2}{3}".format(
-                "[" if braces else "",
+            "{0}{1}{2}{3}{4}".format(
+                ",\n" if format & FMT_NEWENTRY else "",
                 "    "*indent if options["format"] else "",
-                get_info_string(info, options, excluded=excluded),
-                "]" if braces else "",
+                "[" if format & FMT_LEFT_BRACE else "",
+                get_info_string(info, options, walk_error=walk_error, excluded=excluded),
+                "]" if format & FMT_RIGHT_BRACE else "",
             ),
             end=""
         )
@@ -233,7 +234,7 @@ def main():
         subdirs[:] = list(handle_subdirs(subdirs, current, options, indent))
         for fname in fnames:
             info = get_info(os.path.join(current, fname))
-            print_entry(info, options, indent)
+            print_entry(info, options, indent, FMT_NEWENTRY)
             scan_counter += 1
             maybe_show_progress(scan_counter, options)
 
