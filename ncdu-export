@@ -33,7 +33,7 @@ import json
 import codecs
 
 PROGNAME = "py-ncdu-export"
-__version__ = "0.7.1"
+__version__ = "0.7.2"
 PROGRESS_STEP = 1000
 
 FMT_NONE = 0
@@ -81,6 +81,8 @@ def get_info_string(info, options, walk_error=False, excluded=False):
             ",\"read_error\":true" if walk_error else "",
             ",\"mtime\":{0:.0f}".format(info["mtime"]) if options["mtime"] else "",
             ",\"excluded\":\"{0}\"".format(excluded) if excluded else "",
+            # notreg with conditions from the original ncdu 1.10
+            # !(d->flags & (FF_DIR|FF_FILE|FF_ERR|FF_EXL|FF_OTHFS)))
             ",\"notreg\":true" if not any((excluded, stat.S_ISDIR(info["mode"]), stat.S_ISREG(info["mode"]))) else "",
         )
 
@@ -178,7 +180,6 @@ def main():
             print(",")
 
         info = get_info(current)
-
         indent = path_len.curr-path_len.base
         print_entry(info, options, indent, FMT_LEFT_BRACE, walk_error=walk_error)
         path_len.prev = path_len.curr
@@ -190,9 +191,11 @@ def main():
                 excluded = options["device"] and options["device"] != info["dev"] and "othfs"
                 if excluded:
                     print_entry(info, options, indent, FMT_NEWENTRY | FMT_BOTH_BRACES, excluded=excluded)
+                    # don't yield the excluded directory
                 else:
                     yield subdir
             elif stat.S_ISLNK(info["mode"]):
+                # symlinks to directories are included only here
                 print_entry(info, options, indent, FMT_NEWENTRY)
             else:
                 yield subdir
@@ -231,7 +234,9 @@ def main():
         scan_counter += 1
         maybe_show_progress(scan_counter, options)
         indent = path_len.curr-path_len.base
-        subdirs[:] = list(handle_subdirs(subdirs, current, options, indent))
+        # os.walk with topdown = True (default)
+        # allows pruning using the subdirs list
+        subdirs[:] = handle_subdirs(subdirs, current, options, indent)
         for fname in fnames:
             info = get_info(os.path.join(current, fname))
             print_entry(info, options, indent, FMT_NEWENTRY)
