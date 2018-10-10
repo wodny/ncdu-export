@@ -55,12 +55,12 @@ Example of filtering files modified before 2018-01-01:
     $ export ts=$(date -d 2018-01-01 +%s)
 
     Rebrowsing in ncdu:
-    $ jq -c 'select(.mtime < env.ts)' < files-flat.json > files-flat-before2018.json
+    $ jq -c 'select(.mtime < (env.ts | tonumber))' < files-flat.json > files-flat-before2018.json
     $ ./unflatten.py files-flat-before2018.json > files-before2018.json
     $ ncdu -f files-before2018.json
 
     Putting files in an archive and removing them:
-    $ jq -j 'select(.mtime < env.ts and .type == "file") | .dirs + "/" + .name + "\u0000"' < files-flat.json > files-flat-before2018.txt
+    $ jq -j 'select(.mtime < (env.ts | tonumber) and .type == "file") | .dirs + "/" + .name + "\u0000"' < files-flat.json > files-flat-before2018.txt
     $ tar cvzf archive.tgz --null -T files-flat-before2018.txt --remove-files
 
 ### Find export
