@@ -27,14 +27,20 @@ from __future__ import print_function
 import sys
 import os
 import os.path
+import stat
 import time
 import json
 import codecs
 
 PROGNAME = "py-ncdu-export"
-__version__ = "0.6.0"
+__version__ = "0.7.2"
 PROGRESS_STEP = 1000
 
+FMT_NONE = 0
+FMT_NEWENTRY = 1 << 0
+FMT_LEFT_BRACE = 1 << 1
+FMT_RIGHT_BRACE = 1 << 2
+FMT_BOTH_BRACES = FMT_LEFT_BRACE | FMT_RIGHT_BRACE
 
 class WalkError:
     val = False
@@ -56,23 +62,28 @@ def get_info(path):
         ("dsize", stat_result.st_blocks * S_BLKSIZE),
         ("ino", stat_result.st_ino),
         ("mtime", stat_result.st_mtime),
+        ("dev", stat_result.st_dev),
+        ("mode", stat_result.st_mode),
     ))
 
 
-def get_info_string(path, options, walk_error=False):
-    info = get_info(path)
+def get_info_string(info, options, walk_error=False, excluded=False):
     name = codecs.decode(info["name"], "utf-8", "replace")
     name = json.dumps(name)
     if info.get("error", False):
         return """{{"name":{0},"read_error":true}}""".format(name)
     else:
-        return """{{"name":{0},"asize":{1},"dsize":{2},"ino":{3}{4}{5}}}""".format(
+        return """{{"name":{0},"asize":{1},"dsize":{2},"ino":{3}{4}{5}{6}{7}}}""".format(
             name,
             info["asize"],
             info["dsize"],
             info["ino"],
             ",\"read_error\":true" if walk_error else "",
-            ",\"mtime\":{0:.0f}".format(info["mtime"]) if options["mtime"] else ""
+            ",\"mtime\":{0:.0f}".format(info["mtime"]) if options["mtime"] else "",
+            ",\"excluded\":\"{0}\"".format(excluded) if excluded else "",
+            # notreg with conditions from the original ncdu 1.10
+            # !(d->flags & (FF_DIR|FF_FILE|FF_ERR|FF_EXL|FF_OTHFS)))
+            ",\"notreg\":true" if not any((excluded, stat.S_ISDIR(info["mode"]), stat.S_ISREG(info["mode"]))) else "",
         )
 
 
@@ -94,7 +105,8 @@ def main():
         format=False,
         mtime=False,
         progress=False,
-        progressfd=None
+        progressfd=None,
+        device=None,
     )
 
     argv = []
@@ -111,6 +123,8 @@ def main():
                     if os.isatty(sys.stdin.fileno()) and not os.isatty(sys.stdout.fileno()):
                         options["progress"] = True
                         options["progressfd"] = os.fdopen(sys.stdin.fileno(), "w")
+                if i == "x":
+                    options["device"] = True
                 if i == "h":
                     usage = True
         else:
@@ -128,10 +142,14 @@ def main():
             "\n\t-h  this help"
             "\n\t-m  include mtime"
             "\n\t-p  show progress"
+            "\n\t-x  don't cross filesystem boundaries"
             .format(sys.argv[0], __version__)
         )
 
     dirname = argv[0]
+
+    if options["device"]:
+        options["device"] = os.stat(dirname).st_dev
 
     print(
         """[1,0,{{"progname":"{0}","progver":"{1}","timestamp":{2}}}""".format(
@@ -161,15 +179,38 @@ def main():
         else:
             print(",")
 
+        info = get_info(current)
+        indent = path_len.curr-path_len.base
+        print_entry(info, options, indent, FMT_LEFT_BRACE, walk_error=walk_error)
+        path_len.prev = path_len.curr
+
+    def handle_subdirs(subdirs, current, options, indent):
+        for subdir in subdirs:
+            info = get_info(os.path.join(current, subdir))
+            if stat.S_ISDIR(info["mode"]):
+                excluded = options["device"] and options["device"] != info["dev"] and "othfs"
+                if excluded:
+                    print_entry(info, options, indent, FMT_NEWENTRY | FMT_BOTH_BRACES, excluded=excluded)
+                    # don't yield the excluded directory
+                else:
+                    yield subdir
+            elif stat.S_ISLNK(info["mode"]):
+                # symlinks to directories are included only here
+                print_entry(info, options, indent, FMT_NEWENTRY)
+            else:
+                yield subdir
+
+    def print_entry(info, options, indent, format=FMT_NONE, walk_error=False, excluded=False):
         print(
-            "{0}[{1}".format(
-                "    "*(path_len.curr-path_len.base) if options["format"] else "",
-                get_info_string(current, options, walk_error=walk_error)
+            "{0}{1}{2}{3}{4}".format(
+                ",\n" if format & FMT_NEWENTRY else "",
+                "    "*indent if options["format"] else "",
+                "[" if format & FMT_LEFT_BRACE else "",
+                get_info_string(info, options, walk_error=walk_error, excluded=excluded),
+                "]" if format & FMT_RIGHT_BRACE else "",
             ),
             end=""
         )
-
-        path_len.prev = path_len.curr
 
     def walk_error_handler(error):
         handle_dir(error.filename, path_len, options, walk_error=True)
@@ -192,14 +233,13 @@ def main():
         handle_dir(current, path_len, options)
         scan_counter += 1
         maybe_show_progress(scan_counter, options)
+        indent = path_len.curr-path_len.base
+        # os.walk with topdown = True (default)
+        # allows pruning using the subdirs list
+        subdirs[:] = handle_subdirs(subdirs, current, options, indent)
         for fname in fnames:
-            print(
-                ",\n{0}{1}".format(
-                    "    "*(path_len.curr-path_len.base) if options["format"] else "",
-                    get_info_string(os.path.join(current, fname), options)
-                ),
-                end=""
-            )
+            info = get_info(os.path.join(current, fname))
+            print_entry(info, options, indent, FMT_NEWENTRY)
             scan_counter += 1
             maybe_show_progress(scan_counter, options)
 
