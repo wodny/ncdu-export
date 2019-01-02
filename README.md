@@ -32,6 +32,9 @@ Example:
     ^D
     $ scp remote-host:files.json .
 
+    3. Analyze the data
+    $ ncdu -f files.json
+
 ## Other tools
 
 Tools described below are prepared for filenames containing unusual characters 
