@@ -5,7 +5,7 @@
 # features. JSON output is built incrementally and only partially using 
 # the standard json library -- uglier code but minimal RAM consumption.
 #
-# Copyright (C) 2015-2018 Marcin Szewczyk, marcin.szewczyk[at]wodny.org
+# Copyright (C) 2015-2019 Marcin Szewczyk, marcin.szewczyk[at]wodny.org
 #
 # Contributors:
 #   Jose Riha (https://github.com/jose1711)
@@ -33,7 +33,7 @@ import json
 import codecs
 
 PROGNAME = "py-ncdu-export"
-__version__ = "0.7.2"
+__version__ = "0.7.4"
 PROGRESS_STEP = 1000
 
 FMT_NONE = 0
@@ -104,7 +104,6 @@ def main():
     options = dict(
         format=False,
         mtime=False,
-        progress=False,
         progressfd=None,
         device=None,
     )
@@ -120,9 +119,18 @@ def main():
                 if i == "m":
                     options["mtime"] = True
                 if i == "p":
-                    if os.isatty(sys.stdin.fileno()) and not os.isatty(sys.stdout.fileno()):
-                        options["progress"] = True
-                        options["progressfd"] = os.fdopen(sys.stdin.fileno(), "w")
+                    stat_stdout = os.fstat(sys.stdout.fileno())
+                    stat_stderr = os.fstat(sys.stderr.fileno())
+                    if (
+                        os.isatty(sys.stderr.fileno()) or
+                        stat_stdout.st_dev != stat_stderr.st_dev or
+                        stat_stdout.st_ino != stat_stderr.st_ino
+                    ):
+                        # allow progress display if stderr is a TTY (if program
+                        # is run locally) or if it's an fd different than
+                        # stdout (usually FIFOs of remote SSH process or local
+                        # pipes); inspired by the pv tool's code
+                        options["progressfd"] = os.fdopen(sys.stderr.fileno(), "w")
                 if i == "x":
                     options["device"] = True
                 if i == "h":
@@ -216,7 +224,7 @@ def main():
         handle_dir(error.filename, path_len, options, walk_error=True)
 
     def maybe_show_progress(scan_counter, options, end=""):
-        if options["progress"] and (end or scan_counter % PROGRESS_STEP == 0):
+        if options["progressfd"] is not None and (end or scan_counter % PROGRESS_STEP == 0):
             print(
                 "\rScanned files: {0}".format(scan_counter),
                 file=options["progressfd"],

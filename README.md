@@ -18,6 +18,20 @@ generates an export file compatible with [ncdu][1] and **requires only Python
 Currently the output is not identical to [ncdu][1]'s output but should 
 work well enough.
 
+Example:
+
+    1. Copy the script to the remote host
+    $ scp ncdu-export remote-host:
+
+    2A. Pipe meta-data via ssh to a local file:
+    $ ssh remote-host ./ncdu-export -p / > files.json
+
+    2B. Collect meta-data on the remote host and then download it:
+    $ ssh remote-host
+    $ ./ncdu-export -p / > files.json
+    ^D
+    $ scp remote-host:files.json .
+
 ## Other tools
 
 Tools described below are prepared for filenames containing unusual characters 
