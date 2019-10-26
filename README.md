@@ -10,13 +10,21 @@ a [JSON export file][2] on a remote machine (`-o` option) and then
 browse directories locally (`-f` option).
 
 On some old machines there may be an old version of [ncdu][1] without 
-that option or there may be no [ncdu][1] at all and it may be expensive to build 
-[ncdu][1] for every one of them. The **ncdu-export** tool is a workaround - it 
-generates an export file compatible with [ncdu][1] and **requires only Python 
-2.6** (or newer) on the remote machine.
+that option or there may be no [ncdu][1] at all and it may be expensive 
+to build [ncdu][1] for every one of them or for some reason you cannot 
+get static binaries for a specific platform. The **ncdu-export** tool is 
+a workaround - it generates an export file compatible with [ncdu][1] and 
+**requires only Python 2.6** (or newer) on the remote machine.
 
-Currently the output is not identical to [ncdu][1]'s output but should 
-work well enough.
+Below, there is also a script based on the `find` command only (without 
+using Python).
+
+Note, however, that there are **static binaries** for x86, x86\_64 and 
+ARM available directly from the [ncdu's][1] homepage, so tools from this 
+repository may be useful only if you cannot use those static binaries.
+
+Currently the scripts' output is not identical to [ncdu][1]'s output but 
+should work well enough.
 
 Example:
 
