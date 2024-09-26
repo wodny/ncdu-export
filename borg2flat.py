@@ -5,7 +5,7 @@ import argparse
 import json
 import stat
 
-def getFileInfo(path, root):
+def getFileInfo(path, root, is_excluded = False):
     stats = os.lstat(path)
     dirname = os.path.dirname(path)
 
@@ -17,7 +17,9 @@ def getFileInfo(path, root):
         "mtime" : int(stats.st_mtime),
         "type" : "dir" if os.path.isdir(path) else "file",
         "dirs" : f"{root}/{dirname}" if dirname else root,
-    }
+    } | ({
+        "excluded" : "pattern",
+    } if is_excluded else { })
 
 p = argparse.ArgumentParser()
 p.add_argument("--root", default="<root>", help="root directory name")
