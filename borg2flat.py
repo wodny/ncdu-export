@@ -27,4 +27,5 @@ args = p.parse_args()
 args.root = args.root.rstrip("/")
 
 for line in args.file:
-    print(json.dumps(getFileInfo(line[:-1], args.root)))
+    filename = line.rstrip("\n")
+    print(json.dumps(getFileInfo(filename, args.root)))
