@@ -45,4 +45,4 @@ for line in args.file:
 
     filename = line[2:].rstrip("\n")
     excluded = line[0] in exclusion_letters
-    print(json.dumps(getFileInfo(filename, args.root, excluded)))
+    print(json.dumps(getFileInfo(filename, args.root, excluded), ensure_ascii = False))
