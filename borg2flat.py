@@ -15,7 +15,7 @@ def getFileInfo(path, root, is_excluded = False):
         "dsize" : stats.st_blocks * 512,
         "ino" : stats.st_ino,
         "mtime" : int(stats.st_mtime),
-        "type" : "dir" if os.path.isdir(path) else "file",
+        "type" : "dir" if os.path.isdir(path) and not is_excluded else "file",
         "dirs" : f"{root}/{dirname}" if dirname else root,
     } | ({
         "excluded" : "pattern",
