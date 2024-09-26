@@ -21,9 +21,10 @@ def getFileInfo(path, root):
 
 p = argparse.ArgumentParser()
 p.add_argument("--root", default="<root>", help="root directory name")
-p.add_argument("filename", help="find export filename")
+p.add_argument("file", type=argparse.FileType("r"), help="find export filename")
 args = p.parse_args()
 
 args.root = args.root.rstrip("/")
 
-print(json.dumps(getFileInfo(args.filename, args.root)))
+for line in args.file:
+    print(json.dumps(getFileInfo(line[:-1], args.root)))
