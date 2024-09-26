@@ -125,29 +125,29 @@ or
 
 
                          .------------.
-         .---------------| filesystem |
-         |               '------------'
-         |                      |
-         |                      | ncdu -o / ncdu-export
-         |                      v
-         |                  .------.         .---------.
-         | find.sh          | ncdu | ncdu -f |  ncdu   |
-         |                  | JSON |-------->| preview |
-         |                  '------'         '---------'
-         |                    |  ^
-         |         flatten.py |  | unflatten.py
-         v                    v  |
+      .----.-------------| filesystem |
+      |    |             '------------'
+      |    |                    |
+      |    |                    | ncdu -o / ncdu-export
+      |    |                    v
+      |    |                .------.         .---------.
+      |    | find.sh        | ncdu | ncdu -f |  ncdu   |
+      |    |                | JSON |-------->| preview |
+      |    |                '------'         '---------'
+      |    |                  |  ^
+      |    |       flatten.py |  | unflatten.py
+      |    v                  v  |
     .--------.              .------.
     |  find  | find2flat.py | flat |<---. jq filtering
     | output |------------->| JSON |----'
     '--------'              '------'
-                                |
-                                | jq
-                                v
-                          .-----------.        .---------.
-                          |    tar    | tar -T |   tar   |
-                          | file list |------->| archive |
-                          '-----------'        '---------'
+      |                       ^  |
+      |                       |  | jq
+      v                       |  v
+    .---------.               |  .-----------.        .---------.
+    | borg.sh |---------------'  |    tar    | tar -T |   tar   |
+    | output  |                  | file list |------->| archive |
+    '---------'                  '-----------'        '---------'
 
 
 
