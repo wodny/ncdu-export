@@ -105,6 +105,22 @@ or
 
     $ ./find.sh ~/projects/ | ./find2flat.py - | ./unflatten.py - | ncdu -f -
 
+### Borg export
+
+`borg.sh` allows you to turn the `borg create --dry-run --list` output into an
+ncdu-compatible JSON format. This allows you to preview the directories which
+borg would back up using ncdu's interactive, discoverable front-end. Unlike the
+`find` export however, borg and the python script must be ran as the same user
+on the same machine for this to work.
+
+    $ ./borg.sh /path/to/borg/repo::{now} /path/to/back/up/ > borg-flat-export.json
+    $ ./unflatten.py borg-flat-export.json > borg-export.json
+    $ ncdu -f borg-export.json
+
+or
+
+    $ ./borg.sh /path/to/borg/repo::{now} /path/to/back/up/ | ./unflatten.py - | ncdu -f -
+
 ## Graph of tools
 
 
