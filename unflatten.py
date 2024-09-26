@@ -54,7 +54,7 @@ def adjust_depth(dirs, prev_dirs):
         print("]"*closed, end="")
     if opened:
         for opened_dir in dirs[-opened:]:
-            print(""",\n[{{"name":{},"asize":0,"dsize":0,"ino":0,"mtime":0}}""".format(json.dumps(opened_dir)), end="")
+            print(""",\n[{{"name":{},"asize":0,"dsize":0,"ino":0,"mtime":0}}""".format(json.dumps(opened_dir, ensure_ascii = False)), end="")
 
 for line in options.file:
     obj = json.loads(line)
@@ -67,10 +67,10 @@ for line in options.file:
     del obj["type"]
     adjust_depth(dirs, prev_dirs)
     if etype == "dir":
-        print(",\n[{}".format(json.dumps(obj)), end="")
+        print(",\n[{}".format(json.dumps(obj, ensure_ascii = False)), end="")
         dirs.append(obj["name"])
     else:
-        print(",\n{}".format(json.dumps(obj)), end="")
+        print(",\n{}".format(json.dumps(obj, ensure_ascii = False)), end="")
     prev_dirs = dirs
 
 dirs = []

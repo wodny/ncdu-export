@@ -91,7 +91,7 @@ for prefix, event, value in parser:
         if state != ParserState.HEADER:
             # output meta-data (omit header)
             obj["dirs"] = dirs if options.dirs == "array" else "/".join(dirs)
-            print(json.dumps(obj))
+            print(json.dumps(obj, ensure_ascii = False))
 
         if state == ParserState.FIRST_MAP:
             # entered a directory, expand path for its entries
