@@ -24,7 +24,7 @@ def getFileInfo(path, root, is_excluded = False):
 
 p = argparse.ArgumentParser()
 p.add_argument("--root", default="<root>", help="root directory name")
-p.add_argument("file", type=argparse.FileType("r"), help="find export filename")
+p.add_argument("file", type=argparse.FileType("r"), help="borg export filename")
 args = p.parse_args()
 
 args.root = args.root.rstrip("/")
