@@ -2,7 +2,10 @@
 
 # Convert flattened JSON back to ncdu-compatible JSON.
 #
-# Copyright (C) 2018 Marcin Szewczyk, marcin.szewczyk[at]wodny.org
+# Copyright (C) 2018-2024 Marcin Szewczyk, marcin.szewczyk[at]wodny.org
+#
+# Contributors:
+#   Atemu (https://github.com/Atemu)
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -25,11 +28,14 @@ from itertools import takewhile
 from operator import eq
 
 PROGNAME = "ncdu-export-unflatten"
-__version__ = "0.1.1"
+__version__ = "0.2.0"
 
 argp = argparse.ArgumentParser()
 argp.add_argument("file", type=argparse.FileType("r"), help="flat export filename")
+argp.add_argument("--ascii", action="store_true", help="dump JSON strings in ASCII (not UTF-8)")
 options = argp.parse_args()
+
+options.dumps = json.dumps if options.ascii else lambda v: json.dumps(v, ensure_ascii=False)
 
 prev_dirs = []
 
@@ -54,7 +60,9 @@ def adjust_depth(dirs, prev_dirs):
         print("]"*closed, end="")
     if opened:
         for opened_dir in dirs[-opened:]:
-            print(""",\n[{{"name":{},"asize":0,"dsize":0,"ino":0,"mtime":0}}""".format(json.dumps(opened_dir)), end="")
+            print(""",\n[{{"name":{},"asize":0,"dsize":0,"ino":0,"mtime":0}}""".format(
+                options.dumps(opened_dir)
+            ), end="")
 
 for line in options.file:
     obj = json.loads(line)
@@ -67,10 +75,10 @@ for line in options.file:
     del obj["type"]
     adjust_depth(dirs, prev_dirs)
     if etype == "dir":
-        print(",\n[{}".format(json.dumps(obj)), end="")
+        print(",\n[{}".format(options.dumps(obj)), end="")
         dirs.append(obj["name"])
     else:
-        print(",\n{}".format(json.dumps(obj)), end="")
+        print(",\n{}".format(options.dumps(obj)), end="")
     prev_dirs = dirs
 
 dirs = []

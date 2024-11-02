@@ -14,7 +14,8 @@ that option or there may be no [ncdu][1] at all and it may be expensive
 to build [ncdu][1] for every one of them or for some reason you cannot 
 get static binaries for a specific platform. The **ncdu-export** tool is 
 a workaround - it generates an export file compatible with [ncdu][1] and 
-**requires only Python 2.6** (or newer) on the remote machine.
+**requires only Python 2.6 or Python 3.2** (or newer) on the remote 
+machine.
 
 Below, there is also a script based on the `find` command only (without 
 using Python).
@@ -42,6 +43,26 @@ Example:
 
     3. Analyze the data
     $ ncdu -f files.json
+
+## Remarks on usage
+
+### Pointing to the interpreter
+
+If you get the `/usr/bin/env: ‘python’: No such file or directory` 
+message you need to call a chosen version of python explicitly in one of 
+the following ways:
+
+- `python2 ncdu-export` (if using Python 2),
+- `python3 ncdu-export` (if using Python 3),
+- fix the first line (hashbang) of the script according to your 
+  environment.
+
+### Names encoded using UTF-8 or ASCII
+
+Since version 0.8.0 `ncdu-export` encodes names using UTF-8 by default.
+Use the `-a` switch to output ASCII. The default changed because at the 
+time of writing this the original `ncdu` ≥ 2.5 based on Zig does not 
+accept JSON with names encoded in ASCII. See #6 for details.
 
 ## Other tools
 

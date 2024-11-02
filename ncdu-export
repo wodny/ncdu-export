@@ -1,14 +1,15 @@
-#!/usr/bin/python
+#!/usr/bin/env python
 # coding: utf-8
 
-# Standalone ncdu export feature using only Python's 2.6 built-in 
-# features. JSON output is built incrementally and only partially using 
-# the standard json library -- uglier code but minimal RAM consumption.
+# Standalone ncdu export feature using only built-in features of Python 2.6 or
+# Python 3.2. JSON output is built incrementally and only partially using the
+# standard json library -- uglier code but minimal RAM consumption.
 #
-# Copyright (C) 2015-2019 Marcin Szewczyk, marcin.szewczyk[at]wodny.org
+# Copyright (C) 2015-2024 Marcin Szewczyk, marcin.szewczyk[at]wodny.org
 #
 # Contributors:
 #   Jose Riha (https://github.com/jose1711)
+#   Atemu (https://github.com/Atemu)
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -33,7 +34,7 @@ import json
 import codecs
 
 PROGNAME = "py-ncdu-export"
-__version__ = "0.7.4"
+__version__ = "0.8.0"
 PROGRESS_STEP = 1000
 
 FMT_NONE = 0
@@ -42,9 +43,26 @@ FMT_LEFT_BRACE = 1 << 1
 FMT_RIGHT_BRACE = 1 << 2
 FMT_BOTH_BRACES = FMT_LEFT_BRACE | FMT_RIGHT_BRACE
 
+# os.fsencode() available since Python 3.2,
+# for consistency with other parts of code (see below)
+if hasattr(os, "fsencode"):
+    # Python 3
+    dumps = lambda v: json.dumps(v, ensure_ascii=False)
+    # os.fsencode() returns bytes so os.walk()
+    # also returns bytes and later .decode() works,
+    # if the argument is not str it omits encoding
+    encode_filename = os.fsencode
+    # this is important before Python 3.4 where
+    # OSError.filename was decoded
+    encode_error_filename = os.fsencode
+else:
+    # Python 2
+    dumps = lambda v: json.dumps(v, ensure_ascii=False).encode("utf8")
+    encode_filename = lambda v: v
+    encode_error_filename = lambda v: v
+
 class WalkError:
     val = False
-
 
 def get_info(path):
     S_BLKSIZE = 512
@@ -66,10 +84,9 @@ def get_info(path):
         ("mode", stat_result.st_mode),
     ))
 
-
 def get_info_string(info, options, walk_error=False, excluded=False):
     name = codecs.decode(info["name"], "utf-8", "replace")
-    name = json.dumps(name)
+    name = dumps(name)
     if info.get("error", False):
         return """{{"name":{0},"read_error":true}}""".format(name)
     else:
@@ -92,7 +109,7 @@ def get_path_dirs(path):
         raise Exception("absolute path required")
     path_dirs = []
     path, tail = os.path.split(path)
-    while tail != "":
+    while tail:
         path_dirs.append(tail)
         path, tail = os.path.split(path)
     path_dirs.append(tail)
@@ -114,11 +131,14 @@ def main():
     for arg in sys.argv[1:]:
         if arg.startswith("-"):
             for i in arg:
-                if i == "f":
+                if i == "a":
+                    global dumps
+                    dumps = json.dumps
+                elif i == "f":
                     options["format"] = True
-                if i == "m":
+                elif i == "m":
                     options["mtime"] = True
-                if i == "p":
+                elif i == "p":
                     stat_stdout = os.fstat(sys.stdout.fileno())
                     stat_stderr = os.fstat(sys.stderr.fileno())
                     if (
@@ -131,9 +151,9 @@ def main():
                         # stdout (usually FIFOs of remote SSH process or local
                         # pipes); inspired by the pv tool's code
                         options["progressfd"] = os.fdopen(sys.stderr.fileno(), "w")
-                if i == "x":
+                elif i == "x":
                     options["device"] = True
-                if i == "h":
+                elif i == "h":
                     usage = True
         else:
             argv.append(arg)
@@ -146,6 +166,7 @@ def main():
             "{0} [-fhmp] dirname"
             "\nversion: {1}"
             "\noptions:"
+            "\n\t-a  dump JSON strings in ASCII (not UTF-8)"
             "\n\t-f  format"
             "\n\t-h  this help"
             "\n\t-m  include mtime"
@@ -154,7 +175,7 @@ def main():
             .format(sys.argv[0], __version__)
         )
 
-    dirname = argv[0]
+    dirname = encode_filename(argv[0])
 
     if options["device"]:
         options["device"] = os.stat(dirname).st_dev
@@ -221,7 +242,7 @@ def main():
         )
 
     def walk_error_handler(error):
-        handle_dir(error.filename, path_len, options, walk_error=True)
+        handle_dir(encode_error_filename(error.filename), path_len, options, walk_error=True)
 
     def maybe_show_progress(scan_counter, options, end=""):
         if options["progressfd"] is not None and (end or scan_counter % PROGRESS_STEP == 0):

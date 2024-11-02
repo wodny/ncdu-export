@@ -3,7 +3,10 @@
 # Convert ncdu's JSON output to flat JSON easy to process using jq (or 
 # other JSON-processing tools).
 #
-# Copyright (C) 2018 Marcin Szewczyk, marcin.szewczyk[at]wodny.org
+# Copyright (C) 2018-2024 Marcin Szewczyk, marcin.szewczyk[at]wodny.org
+#
+# Contributors:
+#   Atemu (https://github.com/Atemu)
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -45,9 +48,12 @@ obj = {}
 
 argp = argparse.ArgumentParser()
 argp.add_argument("file", type=argparse.FileType("rb"), help="ncdu export filename")
+argp.add_argument("--ascii", action="store_true", help="dump JSON strings in ASCII (not UTF-8)")
 argp.add_argument("--dirs", choices=["array", "string"], default="string", help="directory name format output to flat file")
 argp.add_argument("--verbose", action="store_true", help="enable verbose mode (inc. ijson variant)")
 options = argp.parse_args()
+
+options.dumps = json.dumps if options.ascii else lambda v: json.dumps(v, ensure_ascii=False)
 
 if options.verbose:
     sys.stderr.write("ijson module variant: {}\n".format(ijson.__name__))
@@ -91,7 +97,7 @@ for prefix, event, value in parser:
         if state != ParserState.HEADER:
             # output meta-data (omit header)
             obj["dirs"] = dirs if options.dirs == "array" else "/".join(dirs)
-            print(json.dumps(obj))
+            print(options.dumps(obj))
 
         if state == ParserState.FIRST_MAP:
             # entered a directory, expand path for its entries
