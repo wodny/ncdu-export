@@ -2,3 +2,5 @@
 /README.html
 /graph.asciio.bak
 /graph.txt
+# PEP 704 has been withdrawn but .venv is still a popular choice
+/.venv
