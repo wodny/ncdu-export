@@ -1,1 +1,3 @@
-ijson==3.3.0
+# requirement for additional flattening/unflattening tools,
+# not the ncdu-export itself
+ijson~=3.3
