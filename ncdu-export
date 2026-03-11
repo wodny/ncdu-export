@@ -34,7 +34,7 @@ import json
 import codecs
 
 PROGNAME = "py-ncdu-export"
-__version__ = "0.8.0"
+__version__ = "0.8.1"
 PROGRESS_STEP = 1000
 
 FMT_NONE = 0
@@ -66,7 +66,7 @@ class WalkError:
 
 def get_info(path):
     S_BLKSIZE = 512
-    name = os.path.basename(path) or "/"
+    name = os.path.basename(path) or b"/"
     try:
         stat_result = os.lstat(path)
     except OSError:
